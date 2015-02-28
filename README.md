@@ -1,39 +1,78 @@
 # SecureProp
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/secure_prop`. To experiment with that code, run `bin/console` for an interactive prompt.
-
-TODO: Delete this and the text above, and describe your gem
+SecureProp is an extension of ActiveModel::SecurePassword.
+It is almost the same.
 
 ## Installation
 
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'secure_prop'
+gem 'secure_prop', github: 'xendoc/secure_prop'
 ```
-
-And then execute:
-
-    $ bundle
-
-Or install it yourself as:
-
-    $ gem install secure_prop
 
 ## Usage
 
-TODO: Write usage instructions here
+In your class:
 
-## Development
+```ruby
+class User
+  include SecureProp
+  has_secure :password
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `bin/console` for an interactive prompt that will allow you to experiment.
+  attr_accessor :name, :password_digest
+end
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release` to create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+user = User.new
+user.password = 'password'
+user.password_digest # => "$2a$10$HXj/2y6.PYINe60vQYW0aOiJcHy/jZmQzFiWmvOMPTJABOvdEitMO"
 
-## Contributing
+user.authenticate(:password, 'notright')  # false
+user.authenticate(:password, 'password')  # user
+```
 
-1. Fork it ( https://github.com/[my-github-username]/secure_prop/fork )
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create a new Pull Request
+Adds methods to set and authenticate against a BCrypt property.
+This mechanism requires you to have a `#{property}_digest` attribute.
+
+The following validations are added automatically:
+* Property must be present on creation
+* Property length should be less than or equal to 72 characters
+* Confirmation of property (using a `#{property}_confirmation` attribute)
+
+If property confirmation validation is not needed, simply leave out the
+value for `#{property}_confirmation` (i.e. don't provide a form field for it). When this attribute has a `nil` value, the validation will not be triggered.
+
+For further customizability, it is possible to supress the default validations by passing `validations: false` as an argument.
+
+Multi Properties:
+
+```ruby
+class User
+  include SecureProp
+  has_secure [:password, :phrase]
+
+  attr_accessor :name, :password_digest, :phrase_digest
+end
+```
+
+ActiveRecord:
+
+```sh
+$ rails generate model User name:string password_digest:string
+```
+
+```ruby
+class User < ActiveRecord::Base
+  include SecureProp
+  has_secure :password
+end
+
+User.create(name: 'username', password: 'password')
+
+user = User.find_by(name: 'username').try(:authenticate, :password, 'notright') # false
+user = User.find_by(name: 'username').try(:authenticate, :password, 'password') # user
+```
+
+## License
+
+SecureProp is available under the MIT license.
